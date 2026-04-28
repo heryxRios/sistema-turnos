@@ -14,29 +14,20 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.1.3",
-    "prettier": "^3.2.5"
-  
-
-},
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/heryxRios/sistema-turnos.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/heryxRios/sistema-turnos/issues"
-  },
-  "homepage": "https://github.com/heryxRios/sistema-turnos#readme",
-  "devDependencies": {
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
     "prettier": "^3.8.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heryxRios/sistema-turnos.git"
+  },
+  "bugs": {
+    "url": "https://github.com/heryxRios/sistema-turnos/issues"
+  },
+  "homepage": "https://github.com/heryxRios/sistema-turnos#readme",
+  "dependencies": {
+    "express": "^5.2.1"
   }
 }
