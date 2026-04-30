@@ -1,4 +1,46 @@
 const express = require('express');
+const http = require('http'); // Requerido para Socket.io
+const { Server } = require('socket.io');
+const { dbConnection } = require('./database/connection');
+
+const app = express();
+const server = http.createServer(app); // Creamos el servidor HTTP
+const io = new Server(server, {
+  cors: { origin: "*" } // Permitir conexiones desde cualquier origen
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+// Inyectamos 'io' en las rutas para poder emitir eventos desde los controladores
+app.set('io', io);
+
+// Conectar DB
+dbConnection();
+
+// Rutas
+app.use('/api/atencion', require('./modules/atencion/atencion.routes'));
+app.use('/api/cajas', require('./modules/cajas/cajas.routes'));
+
+//ruta de seguridad a los módulos
+app.use('/api/auth', require('./modules/auth/auth.routes'));
+
+// ... otros imports
+app.use('/api/admin', require('./modules/admin/admin.routes'));
+
+io.on('connection', (socket) => {
+  console.log('📱 Cliente conectado al WebSocket');
+});
+
+server.listen(PORT, () => {
+  console.log(`🚀 Servidor con WebSockets en puerto ${PORT}`);
+});
+
+
+
+/**
+const express = require('express');
 const { dbConnection } = require('./database/connection'); // <-- Nueva línea
 require('./database/models/Turno'); // <-- Importar el modelo para que se cree la tabla
 
@@ -25,7 +67,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
 });
 
-
+**/
 
 
 /**

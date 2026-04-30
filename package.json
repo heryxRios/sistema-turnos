@@ -28,8 +28,12 @@
   },
   "homepage": "https://github.com/heryxRios/sistema-turnos#readme",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "express": "^5.2.1",
+    "io": "^1.5.8",
+    "jsonwebtoken": "^9.0.3",
     "sequelize": "^6.37.8",
+    "socket": "^1.1.90",
     "sqlite3": "^6.0.1"
   }
 }

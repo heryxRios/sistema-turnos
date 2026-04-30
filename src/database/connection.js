@@ -1,3 +1,29 @@
+const { sequelize } = require('./connection');
+const Usuario = require('./models/Usuario');
+
+const dbConnection = async () => {
+  try {
+    await sequelize.authenticate();
+    await sequelize.sync({ force: false });
+
+    // Crear admin por defecto si no hay usuarios
+    const count = await Usuario.count();
+    if (count === 0) {
+      await Usuario.create({
+        username: 'admin',
+        password: 'admin123', // El modelo lo encriptará automáticamente
+        rol: 'admin'
+      });
+      console.log('👤 Superusuario creado (admin/admin123)');
+    }
+    console.log('✅ Base de datos lista.');
+  } catch (error) {
+    console.error('❌ Error:', error);
+  }
+};
+
+/**
+
 const { Sequelize } = require('sequelize');
 const path = require('path');
 
@@ -22,3 +48,4 @@ const dbConnection = async () => {
 };
 
 module.exports = { sequelize, dbConnection };
+**/

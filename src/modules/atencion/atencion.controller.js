@@ -1,39 +1,42 @@
 const Turno = require('../../database/models/Turno');
 
-// Obtener todos los turnos que están en espera o siendo atendidos
-const obtenerTurnos = async (req, res) => {
-  try {
-    const turnos = await Turno.findAll({
-      order: [['createdAt', 'ASC']] // Los más antiguos primero
-    });
-    res.json(turnos);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener turnos', detalle: error.message });
-  }
-};
-
-// Crear un nuevo turno (ejemplo: cuando un cliente llega y saca un ticket)
 const crearTurno = async (req, res) => {
   try {
-    const { cliente } = req.body;
-    
-    // Lógica simple para generar un número de turno: T-01, T-02...
-    const cuentaTurnos = await Turno.count();
-    const nuevoNumero = `T-${(cuentaTurnos + 1).toString().padStart(2, '0')}`;
+    const { cliente, tipo } = req.body; // tipo: 'general' o 'prioritario'
+    const prefijo = tipo === 'prioritario' ? 'P' : 'G';
+
+    // Buscar el último número generado para ese tipo hoy
+    const ultimoTurno = await Turno.findOne({
+      where: { tipo },
+      order: [['createdAt', 'DESC']]
+    });
+
+    let siguienteNumero = 1;
+    if (ultimoTurno) {
+      // Extraer número del string (ej: G-05 -> 5)
+      siguienteNumero = parseInt(ultimoTurno.numero.split('-')[1]) + 1;
+    }
+
+    const numeroFormateado = `${prefijo}-${siguienteNumero.toString().padStart(2, '0')}`;
 
     const nuevoTurno = await Turno.create({
-      numero: nuevoNumero,
-      cliente: cliente || 'Anónimo',
-      estado: 'espera'
+      numero: numeroFormateado,
+      cliente,
+      tipo
     });
 
-    res.status(201).json({
-      mensaje: "Turno generado con éxito",
-      turno: nuevoTurno
-    });
+    // Notificar por WebSocket que hay un nuevo turno en espera
+    req.app.get('io').emit('nuevo-turno-generado', nuevoTurno);
+
+    res.status(201).json(nuevoTurno);
   } catch (error) {
-    res.status(500).json({ error: 'Error al crear turno', detalle: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
-module.exports = { obtenerTurnos, crearTurno };
+const obtenerHistorial = async (req, res) => {
+  const historial = await Turno.findAll({ order: [['createdAt', 'DESC']], limit: 10 });
+  res.json(historial);
+};
+
+module.exports = { crearTurno, obtenerHistorial };
