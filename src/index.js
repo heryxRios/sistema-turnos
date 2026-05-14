@@ -3,6 +3,7 @@ const http = require('http'); // Requerido para Socket.io
 const { Server } = require('socket.io');
 const { dbConnection } = require('./database/connection');
 
+
 const app = express();
 const server = http.createServer(app); // Creamos el servidor HTTP
 const io = new Server(server, {
@@ -10,7 +11,7 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT || 3000;
-
+app.use(express.static('src/public'));
 app.use(express.json());
 
 // Inyectamos 'io' en las rutas para poder emitir eventos desde los controladores

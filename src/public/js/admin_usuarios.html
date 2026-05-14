@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Gestión de Usuarios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <nav class="bg-blue-800 p-4 text-white flex justify-between">
+        <h1 class="text-xl font-bold">Panel Administrativo</h1>
+        <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded">Cerrar Sesión</button>
+    </nav>
+
+    <div class="container mx-auto p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-lg font-bold mb-4">Registrar Nuevo Usuario</h2>
+                <form id="userForm" class="space-y-3">
+                    <input type="text" id="username" placeholder="Usuario" class="w-full p-2 border rounded" required>
+                    <input type="password" id="password" placeholder="Contraseña" class="w-full p-2 border rounded" required>
+                    <select id="rol" class="w-full p-2 border rounded">
+                        <option value="cajero">Cajero</option>
+                        <option value="admin">Administrador</option>
+                        <option value="atencion">Atención</option>
+                    </select>
+                    <button type="submit" class="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700">Crear Usuario</button>
+                </form>
+            </div>
+
+            <div class="md:col-span-2 bg-white p-6 rounded shadow">
+                <h2 class="text-lg font-bold mb-4">Personal del Sistema</h2>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="p-2 border">Usuario</th>
+                            <th class="p-2 border">Rol</th>
+                            <th class="p-2 border">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usuariosTabla">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token || localStorage.getItem('rol') !== 'admin') window.location.href = '/login.html';
+
+        async function cargarUsuarios() {
+            const res = await fetch('/api/admin/usuarios', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const usuarios = await res.json();
+            const tabla = document.getElementById('usuariosTabla');
+            tabla.innerHTML = usuarios.map(u => `
+                <tr>
+                    <td class="p-2 border">${u.username}</td>
+                    <td class="p-2 border"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs uppercase">${u.rol}</span></td>
+                    <td class="p-2 border">
+                        <button onclick="eliminar('${u.id}')" class="text-red-600 hover:underline">Eliminar</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        document.getElementById('userForm').onsubmit = async (e) => {
+            e.preventDefault();
+            await fetch('/api/admin/usuarios', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value,
+                    rol: document.getElementById('rol').value
+                })
+            });
+            cargarUsuarios();
+            e.target.reset();
+        };
+
+        async function eliminar(id) {
+            if(confirm('¿Seguro?')) {
+                await fetch(`/api/admin/usuarios/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                cargarUsuarios();
+            }
+        }
+
+        function logout() { localStorage.clear(); window.location.href = '/login.html'; }
+        cargarUsuarios();
+    </script>
+</body>
+</html>

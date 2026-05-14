@@ -30,7 +30,8 @@ const actualizarUsuario = async (req, res) => {
     const { rol, password } = req.body;
     const usuario = await Usuario.findByPk(id);
 
-    if (!usuario) return res.status(404).json({ mensaje: "Usuario no encontrado" });
+    if (!usuario) 
+      return res.status(404).json({ mensaje: "Usuario no encontrado" });
 
     if (rol) usuario.rol = rol;
     if (password) usuario.password = password; // El hook en el modelo lo encriptará

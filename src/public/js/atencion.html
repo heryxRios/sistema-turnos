@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tótem de Turnos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-blue-50 h-screen flex flex-col items-center justify-center">
+    <h1 class="text-4xl font-black text-blue-900 mb-10">BIENVENIDO - TOME SU TURNO</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl px-4">
+        <button onclick="generar('general')" class="bg-white border-b-8 border-gray-300 p-10 rounded-2xl shadow-xl hover:bg-gray-100 active:border-b-0 transition-all text-center">
+            <span class="block text-6xl mb-4">🏠</span>
+            <span class="text-2xl font-bold text-gray-700">FILA GENERAL</span>
+        </button>
+        <button onclick="generar('prioritario')" class="bg-white border-b-8 border-yellow-400 p-10 rounded-2xl shadow-xl hover:bg-yellow-50 active:border-b-0 transition-all text-center">
+            <span class="block text-6xl mb-4">♿</span>
+            <span class="text-2xl font-bold text-yellow-700">PRIORITARIO</span>
+        </button>
+    </div>
+    <div id="ultimoTicket" class="mt-12 text-center hidden">
+        <p class="text-xl text-gray-600">Su turno es:</p>
+        <p id="numeroTicket" class="text-8xl font-black text-blue-600 animate-bounce"></p>
+    </div>
+
+    <script>
+        async function generar(tipo) {
+            const res = await fetch('/api/atencion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cliente: 'Cliente', tipo })
+            });
+            const data = await res.json();
+            document.getElementById('ultimoTicket').classList.remove('hidden');
+            document.getElementById('numeroTicket').innerText = data.numero;
+            setTimeout(() => { document.getElementById('ultimoTicket').classList.add('hidden'); }, 5000);
+        }
+    </script>
+</body>
+</html>
