@@ -2,64 +2,68 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Admin - Gestión de Usuarios</title>
+    <title>Admin - Gestión Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body class="bg-gray-100 font-sans">
-    <nav class="bg-blue-800 p-4 text-white flex justify-between">
-        <h1 class="text-xl font-bold">Panel Administrativo</h1>
-        <button onclick="logout()" class="bg-red-500 px-3 py-1 rounded">Cerrar Sesión</button>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+    <nav class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center">
+        <h1 class="text-xl font-bold text-lime-400"><i class="fa-solid fa-users-gear mr-2"></i>Gestión de Personal</h1>
+        <div class="space-x-4">
+            <a href="/admin_reportes.html" class="text-slate-400 hover:text-white transition">Reportes</a>
+            <button onclick="localStorage.clear(); location.href='/login.html'" class="bg-red-500/20 text-red-400 px-4 py-1 rounded-lg border border-red-500/50">Salir</button>
+        </div>
     </nav>
 
-    <div class="container mx-auto p-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-white p-6 rounded shadow">
-                <h2 class="text-lg font-bold mb-4">Registrar Nuevo Usuario</h2>
-                <form id="userForm" class="space-y-3">
-                    <input type="text" id="username" placeholder="Usuario" class="w-full p-2 border rounded" required>
-                    <input type="password" id="password" placeholder="Contraseña" class="w-full p-2 border rounded" required>
-                    <select id="rol" class="w-full p-2 border rounded">
+    <div class="container mx-auto p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
+            <h2 class="text-lg font-bold mb-6 text-white">Registrar Usuario</h2>
+            <form id="userForm" class="space-y-4">
+                <input type="text" id="username" placeholder="Nombre de Usuario" class="w-full bg-slate-800 border-slate-700 p-3 rounded-xl focus:ring-2 focus:ring-lime-500 outline-none" required>
+                <input type="password" id="password" placeholder="Contraseña" class="w-full bg-slate-800 border-slate-700 p-3 rounded-xl focus:ring-2 focus:ring-lime-500 outline-none" required>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <select id="rol" class="bg-slate-800 border-slate-700 p-3 rounded-xl outline-none">
                         <option value="cajero">Cajero</option>
                         <option value="admin">Administrador</option>
-                        <option value="atencion">Atención</option>
+                        <option value="seguridad">Seguridad</option>
                     </select>
-                    <button type="submit" class="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700">Crear Usuario</button>
-                </form>
-            </div>
+                    <input type="number" id="ventanillaDefault" placeholder="Ventanilla #" class="bg-slate-800 border-slate-700 p-3 rounded-xl outline-none">
+                </div>
+                
+                <button type="submit" class="w-full bg-lime-500 hover:bg-lime-400 text-black font-bold p-4 rounded-xl transition">Guardar Usuario</button>
+            </form>
+        </div>
 
-            <div class="md:col-span-2 bg-white p-6 rounded shadow">
-                <h2 class="text-lg font-bold mb-4">Personal del Sistema</h2>
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-50">
-                            <th class="p-2 border">Usuario</th>
-                            <th class="p-2 border">Rol</th>
-                            <th class="p-2 border">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="usuariosTabla">
-                        </tbody>
-                </table>
-            </div>
+        <div class="lg:col-span-2 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-slate-800/50 text-slate-400 uppercase text-xs">
+                    <tr>
+                        <th class="p-4">Usuario</th>
+                        <th class="p-4">Rol</th>
+                        <th class="p-4">Ventanilla</th>
+                        <th class="p-4 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="usuariosTabla"></tbody>
+            </table>
         </div>
     </div>
 
     <script>
         const token = localStorage.getItem('token');
-        if (!token || localStorage.getItem('rol') !== 'admin') window.location.href = '/login.html';
+        if (!token || localStorage.getItem('rol') !== 'admin') location.href = '/login.html';
 
         async function cargarUsuarios() {
-            const res = await fetch('/api/admin/usuarios', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetch('/api/admin/usuarios', { headers: { 'Authorization': `Bearer ${token}` } });
             const usuarios = await res.json();
-            const tabla = document.getElementById('usuariosTabla');
-            tabla.innerHTML = usuarios.map(u => `
-                <tr>
-                    <td class="p-2 border">${u.username}</td>
-                    <td class="p-2 border"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs uppercase">${u.rol}</span></td>
-                    <td class="p-2 border">
-                        <button onclick="eliminar('${u.id}')" class="text-red-600 hover:underline">Eliminar</button>
+            document.getElementById('usuariosTabla').innerHTML = usuarios.map(u => `
+                <tr class="border-b border-slate-800 hover:bg-white/5 transition">
+                    <td class="p-4 font-bold text-white">${u.username}</td>
+                    <td class="p-4"><span class="px-3 py-1 bg-lime-500/10 text-lime-400 rounded-full text-xs font-bold uppercase border border-lime-500/20">${u.rol}</span></td>
+                    <td class="p-4 text-slate-400">${u.ventanillaDefault || '-'}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="eliminar('${u.id}')" class="text-red-500 hover:text-red-300 transition px-2"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
@@ -69,32 +73,168 @@
             e.preventDefault();
             await fetch('/api/admin/usuarios', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     username: document.getElementById('username').value,
                     password: document.getElementById('password').value,
-                    rol: document.getElementById('rol').value
+                    rol: document.getElementById('rol').value,
+                    ventanillaDefault: document.getElementById('ventanillaDefault').value
                 })
             });
-            cargarUsuarios();
-            e.target.reset();
+            cargarUsuarios(); e.target.reset();
         };
 
         async function eliminar(id) {
-            if(confirm('¿Seguro?')) {
-                await fetch(`/api/admin/usuarios/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            if(confirm('¿Eliminar usuario?')) {
+                await fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
                 cargarUsuarios();
             }
         }
-
-        function logout() { localStorage.clear(); window.location.href = '/login.html'; }
         cargarUsuarios();
+    </script>
+</body>
+</html>
+
+#### 2. Nueva Vista: `src/public/admin_reportes.html`
+Dashboard con gráficas usando Chart.js.
+
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reportes Administrativos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-black text-white">
+    <div class="p-8">
+        <h1 class="text-3xl font-bold text-lime-400 mb-8">Dashboard de Operaciones</h1>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
+                <p class="text-zinc-500 uppercase text-xs font-bold">Total Turnos Hoy</p>
+                <h3 id="totalHoy" class="text-5xl font-black text-white">0</h3>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-zinc-900 p-8 rounded-2xl border border-zinc-800">
+                <h3 class="text-xl font-bold mb-6">Estado de los Turnos</h3>
+                <canvas id="chartEstado"></canvas>
+            </div>
+            <div class="bg-zinc-900 p-8 rounded-2xl border border-zinc-800">
+                <h3 class="text-xl font-bold mb-6">Productividad por Ventanilla</h3>
+                <canvas id="chartVentanilla"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchStats() {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/admin/reportes', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            
+            document.getElementById('totalHoy').innerText = data.totalHoy;
+
+            // Chart Estados
+            new Chart(document.getElementById('chartEstado'), {
+                type: 'doughnut',
+                data: {
+                    labels: data.porEstado.map(e => e.estado.toUpperCase()),
+                    datasets: [{
+                        data: data.porEstado.map(e => e.total),
+                        backgroundColor: ['#deff9a', '#daffde', '#1a1a1a'],
+                        borderColor: '#000'
+                    }]
+                }
+            });
+
+            // Chart Ventanillas
+            new Chart(document.getElementById('chartVentanilla'), {
+                type: 'bar',
+                data: {
+                    labels: data.porVentanilla.map(v => `Ventanilla ${v.ventanilla}`),
+                    datasets: [{
+                        label: 'Turnos Atendidos',
+                        data: data.porVentanilla.map(v => v.total),
+                        backgroundColor: '#deff9a'
+                    }]
+                },
+                options: { scales: { y: { beginAtZero: true } } }
+            });
+        }
+        fetchStats();
+    </script>
+</body>
+</html>
+
+#### 3. Nueva Vista: `src/public/seguridad_monitor.html`
+Monitor en tiempo real para el guardia.
+
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Monitor de Seguridad - Fila en Vivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <header class="flex justify-between items-center mb-10 border-b border-slate-800 pb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-blue-400">Control de Flujo</h1>
+                <p class="text-slate-500">Monitoreo de fila en tiempo real</p>
+            </div>
+            <div class="bg-blue-500/10 text-blue-400 px-4 py-2 rounded-full border border-blue-500/20 flex items-center">
+                <span class="w-3 h-3 bg-blue-500 rounded-full mr-3 animate-pulse"></span> LIVE
+            </div>
+        </header>
+
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 p-8 shadow-2xl">
+            <h3 class="text-xl font-bold mb-6 flex items-center">
+                <i class="fa-solid fa-users mr-3 text-blue-400"></i> Clientes en Espera
+            </h3>
+            <div id="listaEspera" class="space-y-3">
+                <p class="text-slate-600 italic">No hay nadie en la fila...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const token = localStorage.getItem('token');
+
+        async function cargarFila() {
+            const res = await fetch('/api/seguridad/monitoreo', { headers: { 'Authorization': `Bearer ${token}` } });
+            const turnos = await res.json();
+            renderFila(turnos);
+        }
+
+        function renderFila(turnos) {
+            const container = document.getElementById('listaEspera');
+            if (turnos.length === 0) {
+                container.innerHTML = '<p class="text-slate-600 italic">No hay nadie en la fila...</p>';
+                return;
+            }
+            container.innerHTML = turnos.map(t => `
+                <div class="flex justify-between items-center bg-slate-800 p-4 rounded-2xl border border-slate-700">
+                    <div class="flex items-center">
+                        <span class="text-2xl font-black text-white mr-4">${t.numero}</span>
+                        <span class="px-2 py-1 ${t.tipo === 'prioritario' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-slate-700 text-slate-400'} text-[10px] rounded uppercase font-bold">
+                            ${t.tipo}
+                        </span>
+                    </div>
+                    <div class="text-slate-500 text-sm italic">Esperando...</div>
+                </div>
+            `).join('');
+        }
+
+        socket.on('nuevo-turno-generado', cargarFila);
+        socket.on('turno-llamado', cargarFila); // También refrescar cuando alguien es llamado
+        cargarFila();
     </script>
 </body>
 </html>

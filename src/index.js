@@ -11,6 +11,17 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// Rutas de Reportes (Solo Admin)
+const { obtenerEstadisticas } = require('./modules/admin/reports.controller');
+const { verificarToken, esRol } = require('./middlewares/auth.middleware');
+
+app.get('/api/admin/reportes', verificarToken, esRol(['admin']), obtenerEstadisticas);
+
+// Rutas de Seguridad (Guardia y Admin)
+const { monitorearFila } = require('./modules/auth/seguridad.controller');
+app.get('/api/seguridad/monitoreo', verificarToken, esRol(['seguridad', 'admin']), monitorearFila);
+
 app.use(express.static('src/public'));
 app.use(express.json());
 

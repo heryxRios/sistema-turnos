@@ -5,6 +5,8 @@ const bcrypt = require('bcryptjs');
 const Usuario = sequelize.define('Usuario', {
   username: { type: DataTypes.STRING, unique: true, allowNull: false },
   password: { type: DataTypes.STRING, allowNull: false },
+  // Añade esto a los campos del modelo Usuario
+  ventanillaDefault: { type: DataTypes.INTEGER, allowNull: true},
   rol: { 
     type: DataTypes.ENUM('admin', 'cajero', 'seguridad', 'atencion'), 
     defaultValue: 'cajero' 
