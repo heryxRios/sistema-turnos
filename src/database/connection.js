@@ -1,3 +1,17 @@
+const { Sequelize } = require('sequelize');
+const path = require('path');
+
+// Solo creamos y exportamos la instancia aquí
+const sequelize = new Sequelize({
+  dialect: 'sqlite',
+  storage: path.join(__dirname, 'database.sqlite'),
+  logging: false
+});
+
+// Exportamos solo el objeto sequelize por ahora
+module.exports = { sequelize };
+
+/**
 const { sequelize } = require('./connection');
 const Usuario = require('./models/Usuario');
 
@@ -21,7 +35,7 @@ const dbConnection = async () => {
     console.error('❌ Error:', error);
   }
 };
-
+**/
 /**
 
 const { Sequelize } = require('sequelize');
