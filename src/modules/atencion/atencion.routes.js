@@ -6,6 +6,8 @@ const atencionController = require('./atencion.controller');
 // Cambiamos 'obtenerTurnos' por 'obtenerHistorial' para que coincida con tu exportación
 router.get('/', atencionController.obtenerHistorial); 
 router.post('/', atencionController.crearTurno);
+// NUEVA RUTA PARA EL REINICIO
+router.post('/reiniciar', atencionController.reiniciarTurnos);
 
 module.exports = router;
 

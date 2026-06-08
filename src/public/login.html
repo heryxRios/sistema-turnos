@@ -3,6 +3,99 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Sistema de Turnos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition hover:scale-[1.01]">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black text-gray-800 tracking-wide">SISTEMA TURNOS</h1>
+            <p class="text-gray-500 mt-2 text-sm font-medium uppercase tracking-wider">Identificación de Personal</p>
+        </div>
+
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="username">Usuario</label>
+                <input autocomplete="username" type="text" id="username" placeholder="Ingrese su usuario" 
+                    class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-medium bg-gray-50" required>
+            </div>
+
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="password">Contraseña</label>
+                <input autocomplete="current-password" type="password" id="password" placeholder="••••••••" 
+                    class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-medium bg-gray-50" required>
+            </div>
+
+            <button type="submit" 
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl font-bold text-lg shadow-lg transition-all transform active:scale-95">
+                Ingresar al Sistema
+            </button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            try {
+                const usernameInput = document.getElementById('username').value;
+                const passwordInput = document.getElementById('password').value;
+
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: usernameInput,
+                        password: passwordInput
+                    })
+                });
+                
+                const data = await res.json();
+                
+                // Si la respuesta HTTP no es exitosa (ej: 401, 400, 500)
+                if (!res.ok) {
+                    alert("Error: " + (data.mensaje || data.error || "No se pudo iniciar sesión"));
+                    return;
+                }
+
+                // Validación y almacenamiento seguro de las respuestas del Servidor
+                if (data.token && data.rol) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('rol', data.rol);
+                    
+                    // ENRUTAMIENTO CRONOLÓGICO POR ROLES
+                    if (data.rol === 'admin') {
+                        window.location.href = '/admin_usuarios.html';
+                    } else if (data.rol === 'cajero') {
+                        window.location.href = '/cajas.html';
+                    } else if (data.rol === 'seguridad') {
+                        window.location.href = '/seguridad_monitor.html';
+                    } else if (data.rol === 'atencion') {
+                        // El personal de atención es enviado al Tótem para operar e interactuar
+                        window.location.href = '/atencion.html';
+                    } else {
+                        alert("Rol desconocido asignado a este perfil.");
+                    }
+                } else {
+                    // Alerta diagnóstica precisa si la estructura del backend cambia inesperadamente
+                    alert(`Estructura incompleta.\nToken: ${data.token ? 'Sí' : 'No'}\nRol: ${data.rol ? 'Sí' : 'No'}\nData: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                console.error("Error en la petición de login:", error);
+                alert("No se pudo establecer conexión con el servidor de autenticación.");
+            }
+        };
+    </script>
+</body>
+</html>
+
+
+<!--
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
     <title>Login - Sistema de Turnos</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -59,3 +152,4 @@
     </script>
 </body>
 </html>
+-->

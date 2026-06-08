@@ -1,3 +1,4 @@
+/*
 const Usuario = require('../../database/models/Usuario');
 
 // Listar todos los usuarios (sin mostrar la contraseña)
@@ -50,6 +51,110 @@ const eliminarUsuario = async (req, res) => {
     const filasBorradas = await Usuario.destroy({ where: { id } });
 
     if (filasBorradas === 0) return res.status(404).json({ mensaje: "Usuario no encontrado" });
+
+    res.json({ mensaje: "Usuario eliminado del sistema" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = {
+  obtenerUsuarios,
+  crearUsuario,
+  actualizarUsuario,
+  eliminarUsuario
+};
+*/
+//// archivo nuevo generado para los casos de uso de login
+const Usuario = require('../../database/models/Usuario');
+
+// Listar todos los usuarios (sin mostrar la contraseña)
+const obtenerUsuarios = async (req, res) => {
+  try {
+    const usuarios = await Usuario.findAll({
+      attributes: { exclude: ['password'] }
+    });
+    res.json(usuarios);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Crear un nuevo usuario desde el panel de admin (Soporta: admin, cajero, seguridad, atencion)
+const crearUsuario = async (req, res) => {
+  try {
+    const { username, password, rol, ventanillaDefault } = req.body;
+
+    // Forzar minúsculas y limpiar espacios en blanco
+    const rolFormateado = rol ? rol.toLowerCase().trim() : 'cajero';
+
+    // Validar que el rol sea uno de los permitidos en el sistema
+    const rolesPermitidos = ['admin', 'cajero', 'seguridad', 'atencion'];
+    if (!rolesPermitidos.includes(rolFormateado)) {
+      return res.status(400).json({ error: `El rol '${rolFormateado}' no es válido.` });
+    }
+
+    const nuevoUsuario = await Usuario.create({ 
+      username, 
+      password, 
+      rol: rolFormateado,
+      // Solo asigna ventanilla si es cajero
+      ventanillaDefault: rolFormateado === 'cajero' && ventanillaDefault ? parseInt(ventanillaDefault) : null
+    });
+
+    res.status(201).json({ 
+      mensaje: "Usuario creado exitosamente", 
+      usuario: { id: nuevoUsuario.id, username: nuevoUsuario.username, rol: nuevoUsuario.rol } 
+    });
+  } catch (error) {
+    res.status(400).json({ error: "Error al crear usuario o el nombre de usuario ya existe" });
+  }
+};
+
+// Actualizar un usuario existente (cambiar rol, contraseña o ventanilla)
+const actualizarUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rol, password, ventanillaDefault } = req.body;
+    const usuario = await Usuario.findByPk(id);
+
+    if (!usuario) {
+      return res.status(404).json({ mensaje: "Usuario no encontrado" });
+    }
+
+    if (rol) {
+      const rolFormateado = rol.toLowerCase().trim();
+      const rolesPermitidos = ['admin', 'cajero', 'seguridad', 'atencion'];
+      if (rolesPermitidos.includes(rolFormateado)) {
+        usuario.rol = rolFormateado;
+      }
+    }
+    
+    if (password) usuario.password = password; // El hook 'beforeUpdate' en el modelo lo encriptará
+    
+    // Ajustar ventanilla según corresponda
+    if (usuario.rol === 'cajero') {
+      if (ventanillaDefault !== undefined) usuario.ventanillaDefault = ventanillaDefault ? parseInt(ventanillaDefault) : null;
+    } else {
+      usuario.ventanillaDefault = null;
+    }
+
+    await usuario.save();
+    res.json({ mensaje: "Usuario actualizado correctamente" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Eliminar un usuario
+const eliminarUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const filasBorradas = await Usuario.destroy({ where: { id } });
+
+    if (filasBorradas === 0) {
+      return res.status(404).json({ mensaje: "Usuario no encontrado" });
+    }
 
     res.json({ mensaje: "Usuario eliminado del sistema" });
   } catch (error) {

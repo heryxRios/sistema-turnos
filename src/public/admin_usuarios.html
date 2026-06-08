@@ -1,3 +1,196 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración de Usuarios - Sistema de Turnos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <nav class="bg-blue-800 p-4 text-white flex justify-between items-center shadow-lg">
+        <h1 class="text-xl font-bold tracking-wider">🛠️ PANEL DE ADMINISTRACIÓN</h1>
+        <button onclick="logout()" class="bg-blue-950 hover:bg-black px-4 py-2 rounded-lg font-semibold text-sm transition">Salir</button>
+    </nav>
+
+    <main class="container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit">
+            <h2 class="text-xl font-black text-gray-800 mb-6 uppercase tracking-wide">Crear Nuevo Usuario</h2>
+            
+            <form id="userForm" class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Nombre de Usuario</label>
+                    <input type="text" id="username" placeholder="Ej: anfitrion1" class="w-full p-2.5 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none font-medium" required>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Contraseña</label>
+                    <input type="password" id="password" placeholder="••••••••" class="w-full p-2.5 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none font-medium" required>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Rol del Perfil</label>
+                    <select id="rol" onchange="toggleVentanilla()" class="w-full p-2.5 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none font-medium" required>
+                        <option value="cajero">Cajero / Operador Ventanilla</option>
+                        <option value="atencion">Atención / Tótem Clientes</option>
+                        <option value="seguridad">Seguridad / Monitor Fila</option>
+                        <option value="admin">Administrador del Sistema</option>
+                    </select>
+                </div>
+
+                <div id="divVentanilla">
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Número de Ventanilla Asignada</label>
+                    <input type="number" id="ventanillaDefault" placeholder="Ej: 3" class="w-full p-2.5 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                </div>
+
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl font-bold transition-all shadow-md mt-2">
+                    Guardar Usuario
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 lg:col-span-2">
+            <h2 class="text-xl font-black text-gray-800 mb-6 uppercase tracking-wide">Personal Registrado</h2>
+            
+            <div class="overflow-x-auto rounded-xl border">
+                <table class="w-full text-left text-sm text-gray-500">
+                    <thead class="bg-gray-100 text-gray-700 uppercase text-xs font-bold tracking-wider border-b">
+                        <tr>
+                            <th class="p-3">ID</th>
+                            <th class="p-3">Usuario</th>
+                            <th class="p-3">Rol</th>
+                            <th class="p-3">Ventanilla</th>
+                            <th class="p-3 text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaUsuarios" class="divide-y font-medium text-gray-800">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token || localStorage.getItem('rol') !== 'admin') {
+            window.location.href = '/login.html';
+        }
+
+        const tabla = document.getElementById('tablaUsuarios');
+
+        // Muestra/Oculta el input de ventanilla dependiendo del rol
+        function toggleVentanilla() {
+            const rol = document.getElementById('rol').value;
+            const divV = document.getElementById('divVentanilla');
+            if (rol === 'cajero') {
+                divV.classList.remove('hidden');
+            } else {
+                divV.classList.add('hidden');
+                document.getElementById('ventanillaDefault').value = '';
+            }
+        }
+
+        // Obtener la lista completa del servidor
+        async function cargarUsuarios() {
+            try {
+                const res = await fetch('/api/admin/usuarios', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const usuarios = await res.json();
+                
+                tabla.innerHTML = '';
+                usuarios.forEach(u => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-3 text-gray-400 font-bold">${u.id}</td>
+                        <td class="p-3 font-semibold">${u.username}</td>
+                        <td class="p-3 capitalize text-xs"><span class="px-2 py-1 rounded-full ${
+                            u.rol === 'admin' ? 'bg-purple-100 text-purple-700' :
+                            u.rol === 'cajero' ? 'bg-green-100 text-green-700' :
+                            u.rol === 'atencion' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                        }">${u.rol}</span></td>
+                        <td class="p-3 font-bold text-gray-600">${u.ventanillaDefault || '--'}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="eliminarUsuario(${u.id})" class="text-red-600 hover:text-red-900 font-bold text-xs bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition">Eliminar</button>
+                        </td>
+                    `;
+                    tabla.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("Error al cargar usuarios:", err);
+            }
+        }
+
+        // Enviar nuevo usuario al backend
+        document.getElementById('userForm').onsubmit = async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const rol = document.getElementById('rol').value;
+            const ventanillaDefault = document.getElementById('ventanillaDefault').value;
+
+            try {
+                const res = await fetch('/api/admin/usuarios', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password,
+                        rol,
+                        ventanillaDefault: ventanillaDefault ? parseInt(ventanillaDefault) : null
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    alert("Error: " + (data.error || "No se pudo crear el usuario"));
+                    return;
+                }
+
+                cargarUsuarios(); 
+                e.target.reset();
+                toggleVentanilla();
+            } catch (err) {
+                console.error("Error al guardar:", err);
+            }
+        };
+
+        // Eliminar un usuario del sistema
+        async function eliminarUsuario(id) {
+            if (!confirm("¿Está seguro de que desea eliminar a este empleado?")) return;
+            try {
+                const res = await fetch(`/api/admin/usuarios/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) cargarUsuarios();
+            } catch (err) {
+                console.error("Error al eliminar:", err);
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/login.html';
+        }
+
+        // Arrancar carga automática
+        document.addEventListener('DOMContentLoaded', () => {
+            toggleVentanilla();
+            cargarUsuarios();
+        });
+    </script>
+</body>
+</html>
+
+<!--
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -239,3 +432,4 @@ Monitor en tiempo real para el guardia.
     </script>
 </body>
 </html>
+-->

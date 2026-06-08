@@ -39,4 +39,26 @@ const obtenerHistorial = async (req, res) => {
   res.json(historial);
 };
 
-module.exports = { crearTurno, obtenerHistorial };
+// Añade esta función en src/modules/atencion/atencion.controller.js
+
+const reiniciarTurnos = async (req, res) => {
+  try {
+    // Borra todos los registros de la tabla de Turnos
+    await Turno.destroy({ where: {}, truncate: true });
+    
+    // Notifica de inmediato a todas las pantallas conectadas (Cajas, Visor, Guardia)
+    req.app.get('io').emit('nuevo-turno-generado'); 
+    req.app.get('io').emit('turno-llamado', { numero: '---', ventanilla: '--' });
+
+    res.json({ mensaje: "Sistema reiniciado con éxito. Fila en 0." });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// No olvides exportarla al final del archivo:
+module.exports = {
+  crearTurno,
+  obtenerHistorial,
+  reiniciarTurnos // <-- Asegúrate de agregarla aquí
+};
