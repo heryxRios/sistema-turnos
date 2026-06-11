@@ -56,9 +56,37 @@ const reiniciarTurnos = async (req, res) => {
   }
 };
 
+// Añade esta función en src/modules/atencion/atencion.controller.js
+
+const regresarAFila = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const turno = await Turno.findByPk(id);
+    if (!turno) {
+      return res.status(404).json({ error: "Turno no encontrado" });
+    }
+
+    // Lo regresamos a pendiente y liberamos la ventanilla
+    turno.status = 'pendiente';
+    turno.ventanilla = null;
+    await turno.save();
+
+    // Notificamos por sockets a todo el sistema para actualizar contadores y tablas
+    const io = req.app.get('io');
+    io.emit('nuevo-turno-generado'); 
+    io.emit('turno-llamado', { numero: '---', ventanilla: '--' }); // Limpia el visor si era el último
+
+    res.json({ mensaje: "Turno regresado a la fila de espera con éxito", turno });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // No olvides exportarla al final del archivo:
 module.exports = {
   crearTurno,
   obtenerHistorial,
-  reiniciarTurnos // <-- Asegúrate de agregarla aquí
+  reiniciarTurnos,
+  regresarAFila // <-- Agregada
 };

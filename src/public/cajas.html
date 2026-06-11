@@ -4,12 +4,10 @@
     <meta charset="UTF-8">
     <title>Panel de Caja - Sistema de Turnos</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- CORRECCIÓN CLAVE: Importamos el script del cliente de Socket.io -->
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col justify-between">
 
-    <!-- Modal de Configuración Inicial -->
     <div id="setupCaja" class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50">
         <div class="bg-white p-8 rounded-lg text-center shadow-2xl max-w-sm w-full mx-4">
             <h2 class="text-xl font-bold mb-4">Configurar Ventanilla</h2>
@@ -18,16 +16,265 @@
         </div>
     </div>
 
-    <!-- Barra de Navegación superior -->
     <nav class="bg-green-700 p-4 text-white flex justify-between shadow-lg">
         <h1 class="text-xl font-bold">Ventanilla #<span id="labelVentanilla">--</span></h1>
         <button onclick="logout()" class="text-sm bg-green-900 hover:bg-green-950 px-3 py-1 rounded transition">Salir</button>
     </nav>
 
-    <!-- Contenido Principal Organizado dentro de Main -->
     <main class="container mx-auto p-4 md:p-8 max-w-4xl flex-grow">
         
-        <!-- Tarjeta de Llamada Primaria -->
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden text-center max-w-2xl mx-auto mb-8">
+            <div class="p-8 bg-gray-50 border-b">
+                <p class="text-gray-500 uppercase tracking-widest font-bold text-sm">Turno Actual Atendiendo</p>
+                <h2 id="turnoActual" class="text-8xl font-black text-green-600 my-4">---</h2>
+            </div>
+            
+            <div class="p-8">
+                <div id="controlesLlamada" class="grid grid-cols-1 gap-4">
+                    <button onclick="llamar('prioritario')" class="bg-yellow-500 hover:bg-yellow-600 text-white p-5 rounded-2xl font-bold text-xl shadow-lg transition transform active:scale-95">
+                        Llamar PRIORITARIO ♿
+                    </button>
+                    <button onclick="llamar('general')" class="bg-blue-600 hover:bg-blue-700 text-white p-5 rounded-2xl font-bold text-xl shadow-lg transition transform active:scale-95">
+                        Llamar GENERAL 🏠
+                    </button>
+                    <button onclick="llamar('cualquiera')" class="bg-gray-800 hover:bg-black text-white p-3 rounded-xl font-semibold text-sm shadow transition">
+                        Llamar Siguiente (Cualquier Fila)
+                    </button>
+                </div>
+
+                <div id="controlesAtencion" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button onclick="finalizarAtencion()" class="bg-green-600 hover:bg-green-700 text-white p-5 rounded-2xl font-bold text-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+                        ✅ Finalizar Atención
+                    </button>
+                    <button onclick="devolverAFilaEspera()" class="bg-amber-500 hover:bg-amber-600 text-white p-5 rounded-2xl font-bold text-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+                        ↩️ Regresar a Sala
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
+            
+            <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 text-center shadow-md">
+                <p class="text-gray-400 text-xs font-semibold uppercase tracking-wider">Fila General en Espera</p>
+                <span id="cantGeneral" class="text-5xl font-black text-blue-400 block mt-2">0</span>
+            </div>
+            
+            <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 text-center shadow-md">
+                <p class="text-gray-400 text-xs font-semibold uppercase tracking-wider">Fila Prioritaria en Espera</p>
+                <span id="cantPrioritario" class="text-5xl font-black text-amber-400 block mt-2">0</span>
+            </div>
+
+            <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 col-span-1 sm:col-span-2 shadow-md">
+                <h4 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                    <span>📋</span> Próximos en Fila de Espera
+                </h4>
+                <div class="overflow-x-auto rounded-lg">
+                    <table class="w-full text-left text-sm text-gray-400">
+                        <thead class="bg-gray-700 text-gray-200 uppercase text-xs tracking-wider">
+                            <tr>
+                                <th class="p-3">Turno</th>
+                                <th class="p-3">Cliente</th>
+                                <th class="p-3">Tipo Fila</th>
+                                <th class="p-3">Hora Registro</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaPendientesCaja" class="divide-y divide-gray-700">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 1. Inicialización Global Segura
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login.html';
+
+        const socket = io(); 
+        let ventanilla = null;
+        let turnoActualObjeto = null; // Guardará el JSON del turno que está atendiendo la caja
+
+        // Referencias del DOM
+        const tablaPendientes = document.getElementById('tablaPendientesCaja');
+        const cantGeneral = document.getElementById('cantGeneral');
+        const cantPrioritario = document.getElementById('cantPrioritario');
+
+        function iniciarCaja() {
+            const v = document.getElementById('numVentanilla').value;
+            if(!v) return alert('Por favor, ingresa un número de ventanilla válido.');
+            ventanilla = v;
+            document.getElementById('labelVentanilla').innerText = v;
+            document.getElementById('setupCaja').classList.add('hidden');
+        }
+
+        async function llamar(tipoFila) {
+            if (!ventanilla) return alert('Primero debes configurar el número de ventanilla.');
+            try {
+                const res = await fetch('/api/cajas/llamar', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ ventanilla, tipoFila })
+                });
+                const data = await res.json();
+                
+                if(data.turno) {
+                    turnoActualObjeto = data.turno; // Respaldamos el objeto actual
+                    
+                    // Actualizar número en gigante
+                    document.getElementById('turnoActual').innerText = data.turno.numero;
+                    
+                    // Bloqueo de flujo: Oculta llamadas, muestra botones de resolución
+                    document.getElementById('controlesLlamada').classList.add('hidden');
+                    document.getElementById('controlesAtencion').classList.remove('hidden');
+                } else {
+                    alert(data.mensaje || "No hay turnos pendientes en esta fila.");
+                }
+            } catch (err) {
+                console.error("Error al llamar turno:", err);
+            }
+        }
+
+        // ACCIÓN A: Marcar como Atendido (Cierra el ciclo del cliente)
+        async function finalizarAtencion() {
+            if (!turnoActualObjeto) return;
+            try {
+                // Endpoint para cambiar estatus del turno a 'atendido'
+                const res = await fetch(`/api/cajas/atender/${turnoActualObjeto.id}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    restablecerBotoneraCaja();
+                } else {
+                    alert("Error al intentar cerrar la atención del turno.");
+                }
+            } catch (err) {
+                console.error("Error en finalización:", err);
+            }
+        }
+
+        // ACCIÓN B: Devolver a Fila de Espera (Regresa a estado 'espera')
+        async function devolverAFilaEspera() {
+            if (!turnoActualObjeto) return;
+            try {
+                const res = await fetch(`/api/atencion/${turnoActualObjeto.id}/regresar`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    restablecerBotoneraCaja();
+                } else {
+                    alert("No se pudo devolver el turno a la lista de espera.");
+                }
+            } catch (err) {
+                console.error("Error al regresar el turno:", err);
+            }
+        }
+
+        // Limpia el estado y devuelve el control a los botones de llamada básicos
+        function restablecerBotoneraCaja() {
+            turnoActualObjeto = null;
+            document.getElementById('turnoActual').innerText = "---";
+            
+            // Alternar visibilidad de las botoneras
+            document.getElementById('controlesAtencion').classList.add('hidden');
+            document.getElementById('controlesLlamada').classList.remove('hidden');
+            
+            // Forzar recarga inmediata de la tabla local
+            actualizarMonitoreoCaja();
+        }
+
+        async function actualizarMonitoreoCaja() {
+            try {
+                const res = await fetch('/api/atencion');
+                const turnos = await res.json();
+                
+                // Filtrar solo los turnos en estado 'espera'
+                const pendientes = turnos.filter(t => t.estado === 'espera');
+                
+                // Actualizar contadores numéricos rápidos
+                cantGeneral.innerText = pendientes.filter(t => t.tipo === 'general').length;
+                cantPrioritario.innerText = pendientes.filter(t => t.tipo === 'prioritario').length;
+                
+                // Limpiar y poblar tabla
+                tablaPendientes.innerHTML = '';
+                if(pendientes.length === 0) {
+                    tablaPendientes.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500 italic">No hay turnos pendientes en este momento.</td></tr>`;
+                    return;
+                }
+
+                pendientes.forEach(t => {
+                    const hora = new Date(t.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const fila = document.createElement('tr');
+                    fila.className = "border-b border-gray-700 hover:bg-gray-750 transition-colors";
+                    fila.innerHTML = `
+                        <td class="p-3 font-bold ${t.tipo === 'prioritario' ? 'text-amber-400' : 'text-blue-400'}">${t.numero}</td>
+                        <td class="p-3 text-white font-medium">${t.cliente || 'Anónimo'}</td>
+                        <td class="p-3 capitalize text-xs"><span class="px-2 py-1 rounded-full ${t.tipo === 'prioritario' ? 'bg-amber-900 text-amber-200' : 'bg-blue-900 text-blue-200'}">${t.tipo}</span></td>
+                        <td class="p-3 text-xs text-gray-400">${hora}</td>
+                    `;
+                    tablaPendientes.appendChild(fila);
+                });
+            } catch (err) {
+                console.error("Error al actualizar monitoreo:", err);
+            }
+        }
+
+        // CONTROLADORES DE EVENTOS EN TIEMPO REAL
+        socket.on('nuevo-turno-generado', actualizarMonitoreoCaja);
+        socket.on('turno-llamado', actualizarMonitoreoCaja);
+
+        function logout() { 
+            localStorage.clear(); 
+            window.location.href = '/login.html'; 
+        }
+
+        // Ejecución al renderizarse el DOM
+        document.addEventListener('DOMContentLoaded', actualizarMonitoreoCaja);
+    </script>
+</body>
+</html>
+
+
+
+<!--
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Caja - Sistema de Turnos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!- CORRECCIÓN CLAVE: Importamos el script del cliente de Socket.io ->
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col justify-between">
+
+    <!- Modal de Configuración Inicial ->
+    <div id="setupCaja" class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg text-center shadow-2xl max-w-sm w-full mx-4">
+            <h2 class="text-xl font-bold mb-4">Configurar Ventanilla</h2>
+            <input type="number" id="numVentanilla" placeholder="Ej: 5" class="w-full p-2 border mb-4 text-center text-2xl font-bold rounded">
+            <button onclick="iniciarCaja()" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded font-semibold transition">Iniciar Labores</button>
+        </div>
+    </div>
+
+    <!- Barra de Navegación superior ->
+    <nav class="bg-green-700 p-4 text-white flex justify-between shadow-lg">
+        <h1 class="text-xl font-bold">Ventanilla #<span id="labelVentanilla">--</span></h1>
+        <button onclick="logout()" class="text-sm bg-green-900 hover:bg-green-950 px-3 py-1 rounded transition">Salir</button>
+    </nav>
+
+    <!- Contenido Principal Organizado dentro de Main ->
+    <main class="container mx-auto p-4 md:p-8 max-w-4xl flex-grow">
+        
+        <!- Tarjeta de Llamada Primaria ->
         <div class="bg-white rounded-3xl shadow-xl overflow-hidden text-center max-w-2xl mx-auto mb-8">
             <div class="p-8 bg-gray-50 border-b">
                 <p class="text-gray-500 uppercase tracking-widest font-bold text-sm">Turno Actual Atendiendo</p>
@@ -46,23 +293,23 @@
                 </button>
             </div>
         </div>
-
-        <!-- Panel de Monitoreo del Historial y Fila en Espera (Dentro de la estructura) -->
+        
+        <!- Panel de Monitoreo del Historial y Fila en Espera (Dentro de la estructura) ->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
             
-            <!-- Contador General -->
+            <!- Contador General ->
             <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 text-center shadow-md">
                 <p class="text-gray-400 text-xs font-semibold uppercase tracking-wider">Fila General en Espera</p>
                 <span id="cantGeneral" class="text-5xl font-black text-blue-400 block mt-2">0</span>
             </div>
             
-            <!-- Contador Prioritario -->
+            <!- Contador Prioritario ->
             <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 text-center shadow-md">
                 <p class="text-gray-400 text-xs font-semibold uppercase tracking-wider">Fila Prioritaria en Espera</p>
                 <span id="cantPrioritario" class="text-5xl font-black text-amber-400 block mt-2">0</span>
             </div>
 
-            <!-- Tabla Detallada Ocupando todo el Ancho Inferior -->
+            <!- Tabla Detallada Ocupando todo el Ancho Inferior ->
             <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 col-span-1 sm:col-span-2 shadow-md">
                 <h4 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
                     <span>📋</span> Próximos en Fila de Espera
@@ -78,7 +325,7 @@
                             </tr>
                         </thead>
                         <tbody id="tablaPendientesCaja" class="divide-y divide-gray-700">
-                            <!-- Inyección dinámica -->
+                            <!- Inyección dinámica ->
                         </tbody>
                     </table>
                 </div>
@@ -86,7 +333,7 @@
         </div>
     </main>
 
-    <!-- SCRIPT ÚNICO Y CENTRALIZADO -->
+    <!- SCRIPT ÚNICO Y CENTRALIZADO ->
     <script>
         // 1. Inicialización Global Segura
         const token = localStorage.getItem('token');
@@ -181,3 +428,4 @@
     </script>
 </body>
 </html>
+-->

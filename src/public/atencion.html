@@ -6,6 +6,194 @@
     <title>Tótem de Turnos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
+    <style>
+        @media print {
+            body * { display: none !important; }
+            #ticketTermicoImpresion, #ticketTermicoImpresion * { display: block !important; }
+            #ticketTermicoImpresion { position: absolute; left: 0; top: 0; width: 80mm; padding: 5mm; text-align: center; font-family: monospace; }
+        }
+    </style>
+</head>
+<body class="bg-blue-50 min-h-screen flex flex-col items-center justify-center py-10">
+
+    <h1 class="text-4xl font-black text-blue-900 mb-10 text-center uppercase tracking-wider">Bienvenido - Tome su Turno</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl px-4 mb-8">
+        <button onclick="generar('general')" class="bg-white border-b-8 border-gray-300 p-10 rounded-2xl shadow-xl hover:bg-gray-100 active:border-b-0 active:translate-y-2 transition-all text-center">
+            <span class="block text-6xl mb-4">🏠</span>
+            <span class="text-2xl font-bold text-gray-700">FILA GENERAL</span>
+        </button>
+        <button onclick="generar('prioritario')" class="bg-white border-b-8 border-yellow-400 p-10 rounded-2xl shadow-xl hover:bg-yellow-50 active:border-b-0 active:translate-y-2 transition-all text-center">
+            <span class="block text-6xl mb-4">♿</span>
+            <span class="text-2xl font-bold text-yellow-700">PRIORITARIO</span>
+        </button>
+    </div>
+
+    <!-- Alerta en pantalla del ticket recién creado -->
+    <div id="ultimoTicket" class="mt-4 mb-8 text-center hidden">
+        <p class="text-xl text-gray-600 font-semibold">Su turno es:</p>
+        <p id="numeroTicket" class="text-8xl font-black text-blue-600 animate-bounce mt-2"></p>
+        <button onclick="imprimirTicketFisicoDirecto()" class="mt-4 bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-md flex items-center gap-2 mx-auto">
+            🖨️ Imprimir Ticket
+        </button>
+    </div>
+
+    <!-- Historial Interactivo -->
+    <div class="w-full max-w-4xl px-4">
+        <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span>🕒</span> Historial de Turnos (Clic para Imprimir)
+                </h3>
+                <button onclick="reiniciarSistema()" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-2 rounded-lg shadow">
+                    🔄 Reiniciar Contador (0)
+                </button>
+            </div>
+            <div id="listaHistorialTotem" class="grid grid-cols-2 sm:grid-cols-5 gap-3"></div>
+        </div>
+    </div>
+
+    <!-- 🖥️ MODAL INTERACTIVO PARA REIMPRESIÓN -->
+    <div id="modalTurno" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Opciones del Turno</h3>
+            <p class="text-gray-500 text-sm mb-4">¿Qué deseas hacer con el turno <span id="modalNumero" class="font-bold text-blue-600"></span>?</p>
+            <div class="flex flex-col gap-2">
+                <button onclick="imprimirDesdeModal()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-2">
+                    🖨️ Imprimir Ticket Térmico
+                </button>
+                <button onclick="cerrarModal()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 rounded-lg">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📄 PLANTILLA TÉRMICA OCULTA -->
+    <div id="ticketTermicoImpresion" class="hidden text-center bg-white text-black w-[80mm]">
+        <h2 class="text-xl font-bold tracking-wider">SUCURSAL BANCARIA</h2>
+        <p>--------------------------------</p>
+        <p class="text-sm font-semibold uppercase tracking-widest my-2">Su Turno en Fila</p>
+        <h1 id="printNumero" class="text-5xl font-black my-4">---</h1>
+        <p id="printFila" class="text-sm capitalize font-bold">Fila: --</p>
+        <p>--------------------------------</p>
+        <p id="printHora" class="text-xs mt-1">Fecha y Hora: --</p>
+        <p class="text-xs mt-4 font-bold">Por favor, espere su llamado<br>en las pantallas de la sala.</p>
+    </div>
+
+    <script>
+        const socket = io(); 
+        const listaHistorial = document.getElementById('listaHistorialTotem');
+        let turnoSeleccionado = null;
+        let ultimoTurnoGenerado = null;
+
+        async function generar(tipo) {
+            try {
+                const res = await fetch('/api/atencion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cliente: 'Cliente', tipo })
+                });
+                const data = await res.json();
+                
+                if (data.numero) {
+                    ultimoTurnoGenerado = data;
+                    const alertaTicket = document.getElementById('ultimoTicket');
+                    document.getElementById('numeroTicket').innerText = data.numero;
+                    alertaTicket.classList.remove('hidden');
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function cargarHistorialInicial() {
+            try {
+                const res = await fetch('/api/atencion');
+                const turnos = await res.json();
+                renderizarHistorial(turnos);
+            } catch (err) { console.error(err); }
+        }
+
+        function renderizarHistorial(turnos) {
+            if (!listaHistorial) return;
+            listaHistorial.innerHTML = '';
+            
+            turnos.slice(0, 10).forEach(turno => {
+                const esPrioritario = turno.tipo === 'prioritario';
+                const item = document.createElement('div');
+                item.className = `p-3 rounded-lg text-center font-bold shadow-md cursor-pointer transform hover:scale-105 transition-all ${
+                    esPrioritario ? 'bg-amber-600 text-white border border-amber-500' : 'bg-gray-700 text-gray-200'
+                }`;
+                // Al hacer clic, abrimos el modal pasándole los datos del turno
+                item.onclick = () => abrirModal(turno);
+                
+                item.innerHTML = `
+                    <div class="text-[10px] uppercase opacity-70 tracking-wider">${turno.tipo}</div>
+                    <div class="text-xl mt-0.5">${turno.numero}</div>
+                `;
+                listaHistorial.appendChild(item);
+            });
+        }
+
+        function abrirModal(turno) {
+            turnoSeleccionado = turno;
+            document.getElementById('modalNumero').innerText = turno.numero;
+            document.getElementById('modalTurno').classList.remove('hidden');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modalTurno').classList.add('hidden');
+            turnoSeleccionado = null;
+        }
+
+        function ejecutarImpresion(numero, tipo, fecha) {
+            document.getElementById('printNumero').innerText = numero;
+            document.getElementById('printFila').innerText = `Fila: ${tipo}`;
+            document.getElementById('printHora').innerText = `Hora: ${new Date(fecha).toLocaleTimeString()}`;
+            window.print();
+        }
+
+        function imprimirDesdeModal() {
+            if (turnoSeleccionado) {
+                ejecutarImpresion(turnoSeleccionado.numero, turnoSeleccionado.tipo, turnoSeleccionado.createdAt);
+                cerrarModal();
+            }
+        }
+
+        function imprimirTicketFisicoDirecto() {
+            if (ultimoTurnoGenerado) {
+                ejecutarImpresion(ultimoTurnoGenerado.numero, ultimoTurnoGenerado.tipo, ultimoTurnoGenerado.createdAt);
+                document.getElementById('ultimoTicket').classList.add('hidden');
+            }
+        }
+
+        async function reiniciarSistema() {
+            if (!confirm("⚠️ ¿Vaciar filas y reiniciar contadores desde cero?")) return;
+            try {
+                const res = await fetch('/api/atencion/reiniciar', { method: 'POST' });
+                const data = await res.json();
+                alert(data.mensaje);
+                cargarHistorialInicial();
+            } catch (err) { console.error(err); }
+        }
+
+        socket.on('nuevo-turno-generado', () => {
+            cargarHistorialInicial();
+        });
+
+        document.addEventListener('DOMContentLoaded', cargarHistorialInicial);
+    </script>
+</body>
+</html>
+
+<!--=========================================================================-->
+<!--
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tótem de Turnos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 <body class="bg-blue-50 min-h-screen flex flex-col items-center justify-center py-10">
 
@@ -117,6 +305,7 @@
     </script>
 </body>
 </html>
+-->
 
 <!--
 <!DOCTYPE html>

@@ -9,6 +9,9 @@ router.post('/', atencionController.crearTurno);
 // NUEVA RUTA PARA EL REINICIO
 router.post('/reiniciar', atencionController.reiniciarTurnos);
 
+// En src/modules/atencion/atencion.routes.js
+router.post('/:id/regresar', atencionController.regresarAFila);
+
 module.exports = router;
 
 /**
