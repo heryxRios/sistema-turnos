@@ -1,0 +1,84 @@
+/* src/public/css/atencion.css */
+
+/* 🖨️ Configuración e inyección nativa para impresoras térmicas de 80mm */
+/**
+@media print {
+    body * { 
+        display: none !important; 
+    }
+    #ticketTermicoImpresion, 
+    #ticketTermicoImpresion * { 
+        display: block !important; 
+    }
+    #ticketTermicoImpresion { 
+        position: absolute; 
+        left: 0; 
+        top: 0; 
+        width: 80mm; 
+        padding: 5mm; 
+        text-align: center; 
+        font-family: 'Courier New', Courier, monospace; 
+        color: #000000;
+        background: #ffffff;
+    }
+}
+
+/* 🌀 Animaciones de entrada suaves para alertas y modales */
+/*
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.2s ease-out forwards;
+}*/
+
+/* src/public/css/atencion.css */
+
+/* 🖨️ Forzado de impresión térmica limpia (80mm) */
+@media print {
+    body * { 
+        display: none !important; 
+    }
+    #ticketTermicoImpresion, 
+    #ticketTermicoImpresion * { 
+        display: block !important; 
+    }
+    #ticketTermicoImpresion { 
+        position: absolute; 
+        left: 0; 
+        top: 0; 
+        width: 80mm; 
+        padding: 5mm; 
+        text-align: center; 
+        font-family: 'Courier New', Courier, monospace; 
+        color: #000000;
+        background: #ffffff;
+    }
+}
+
+/* 🌀 Animaciones de entrada suaves */
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Scrollbar personalizado estético oscuro para no romper el diseño */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #020617;
+}
+::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
