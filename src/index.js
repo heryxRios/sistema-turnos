@@ -1,74 +1,33 @@
-const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { sequelize } = require('./database/connection');
-
-// IMPORTACIÓN EN ORNEN DE LOS MODELOS (Evita errores de Sequelize)
-const Usuario = require('./database/models/Usuario');
-const Turno = require('./database/models/Turno');
-
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" }
-});
+const { app, sequelize } = require('./app');
 
 const PORT = process.env.PORT || 3000;
 
-// Middleware para entender JSON y servir el Frontend (vistas HTML)
-app.use(express.json());
-app.use(express.static('src/public'));
-
-// Compartir la instancia de Socket.io con nuestros controladores de la API
-app.set('io', io);
-
-// FUNCIÓN DE INICIALIZACIÓN DE LA BASE DE DATOS
+// Inicializar DB y crear seed si es necesario
 const inicializarDB = async () => {
   try {
     await sequelize.authenticate();
-    console.log('✅ Conexión a SQLite establecida con éxito.');
-
-    // Sincroniza las tablas de forma segura sin borrar datos existentes
     await sequelize.sync({ force: false });
-
-    // Semilla: Crear un administrador inicial si el sistema está completamente vacío
-    const usuariosExistentes = await Usuario.count();
-    if (usuariosExistentes === 0) {
-      await Usuario.create({
-        username: 'admin',
-        password: 'admin123',
-        rol: 'admin'
-      });
-      console.log('👤 [SEED] Superusuario creado con éxito -> (admin / admin123)');
-    }
-    console.log('✅ Tablas y relaciones listas en SQLite.');
+    console.log('✅ Base de datos lista.');
   } catch (error) {
-    console.error('❌ Error crítico al inicializar la base de datos:', error.message);
+    console.error('❌ Error al inicializar DB:', error.message);
   }
 };
 
-// Arrancar la conexión a la base de datos
 inicializarDB();
 
-// ENRUTAMIENTO DE LA API (Asegúrate de tener creados estos archivos de rutas)
-app.use('/api/auth', require('./modules/auth/auth.routes'));
-app.use('/api/atencion', require('./modules/atencion/atencion.routes'));
-app.use('/api/cajas', require('./modules/cajas/cajas.routes'));
-app.use('/api/admin', require('./modules/admin/admin.routes'));
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
+app.set('io', io);
 
-// Escuchador global de conexiones WebSocket en tiempo real
 io.on('connection', (socket) => {
-  console.log('📱 Un dispositivo (Caja, Tótem o Visor) se ha conectado al WebSocket');
-  
-  socket.on('disconnect', () => {
-    console.log('🔌 Un dispositivo se ha desconectado del WebSocket');
-  });
+  console.log('📱 Cliente conectado al WebSocket');
+  socket.on('disconnect', () => console.log('🔌 Cliente desconectado'));
 });
 
-// Lanzar el servidor integrado
 server.listen(PORT, () => {
   console.log(`🚀 Servidor en ejecución.`);
-  console.log(`🌍 Accede localmente en: http://localhost:${PORT}/login.html`);
 });
 
 

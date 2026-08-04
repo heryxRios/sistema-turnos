@@ -1,3 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Caja - Sistema de Turnos</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- CSS Personalizado separado -->
+    <link rel="stylesheet" href="/css/cajas.css">
+    <!-- Cliente de Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-slate-950 min-h-screen text-slate-100 font-sans antialiased flex flex-col justify-between">
+
+    <!-- Modal de Configuración Inicial (Dark Mode) -->
+    <div id="setupCaja" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 p-8 rounded-2xl border border-slate-800 text-center shadow-2xl max-w-sm w-full animate-fade-in">
+            <h2 class="text-xl font-black text-slate-100 mb-2">Configurar Ventanilla</h2>
+            <p class="text-xs text-slate-400 mb-6">Ingresa el número de ventanilla a operar hoy</p>
+            <input type="number" id="numVentanilla" placeholder="Ej: 5" class="w-full p-3 border border-slate-700 bg-slate-950 text-slate-100 mb-6 text-center text-3xl font-black rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <button onclick="iniciarCaja()" class="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all shadow-lg active:scale-95">Iniciar Labores</button>
+        </div>
+    </div>
+
+    <!-- Barra de Navegación Superior Unificada -->
+    <nav class="bg-slate-900 border-b border-slate-800 p-4 text-white flex justify-between items-center shadow-lg sticky top-0 z-40">
+        <div class="flex items-center gap-2">
+            <span class="text-xl md:text-2xl">💻</span>
+            <h1 class="text-sm md:text-lg font-black tracking-wider uppercase text-slate-200">Ventanilla #<span id="labelVentanilla" class="text-blue-400">--</span></h1>
+        </div>
+        <button onclick="logout()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-1.5 rounded-lg border border-slate-700 transition-all">🚪 Salir</button>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <main class="container mx-auto p-4 md:p-6 max-w-4xl flex-grow">
+        
+        <!-- Tarjeta de Llamada Primaria / Turno Atendido -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden text-center max-w-2xl mx-auto mb-8">
+            <div class="p-6 md:p-8 bg-slate-950/50 border-b border-slate-800">
+                <p class="text-slate-400 uppercase tracking-widest font-bold text-xs">Turno Actual Atendiendo</p>
+                <h2 id="turnoActual" class="text-7xl md:text-8xl font-black text-blue-400 my-4 tracking-tight">---</h2>
+            </div>
+            
+            <!-- CONTROLES DINÁMICOS DE FLUJO -->
+            <div class="p-6 md:p-8">
+                <!-- Bloque A: Botonera estándar de Llamados -->
+                <div id="controlesLlamada" class="grid grid-cols-1 gap-4">
+                    <button onclick="llamar('prioritario')" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white p-4 rounded-xl font-black text-lg md:text-xl shadow-lg transition transform active:scale-95 border border-fuchsia-500/30 flex items-center justify-center gap-2">
+                        ♿ Llamar PRIORITARIO
+                    </button>
+                    <button onclick="llamar('general')" class="bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-xl font-bold text-lg md:text-xl shadow-lg transition transform active:scale-95 border border-blue-500/30 flex items-center justify-center gap-2">
+                        🏠 Llamar GENERAL
+                    </button>
+                    <button onclick="llamar('cualquiera')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded-xl font-bold text-xs md:text-sm border border-slate-700 shadow transition">
+                        Llamar Siguiente (Cualquier Fila)
+                    </button>
+                </div>
+
+                <!-- Bloque B: Botonera de Ciclo de Atención (Atención Atómica) -->
+                <div id="controlesAtencion" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+                    <button onclick="finalizarAtencion()" class="bg-green-600 hover:bg-green-500 text-white p-4 rounded-xl font-bold text-base md:text-lg shadow-lg transition transform active:scale-95 border border-green-500/30 flex items-center justify-center gap-2">
+                        ✅ Finalizar Atención
+                    </button>
+                    <button onclick="devolverAFilaEspera()" class="bg-amber-600 hover:bg-amber-500 text-white p-4 rounded-xl font-bold text-base md:text-lg shadow-lg transition transform active:scale-95 border border-amber-500/30 flex items-center justify-center gap-2">
+                        ↩️ Regresar a Sala
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel de Monitoreo del Historial y Fila en Espera -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
+            
+            <!-- Contador General -->
+            <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 text-center shadow-lg">
+                <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Fila General en Espera</p>
+                <span id="cantGeneral" class="text-4xl md:text-5xl font-black text-blue-400 block mt-2">0</span>
+            </div>
+            
+            <!-- Contador Prioritario (Con acento Fucsia) -->
+            <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 text-center shadow-lg">
+                <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Fila Prioritaria en Espera</p>
+                <span id="cantPrioritario" class="text-4xl md:text-5xl font-black text-fuchsia-400 block mt-2">0</span>
+            </div>
+
+            <!-- Tabla Detallada Ocupando todo el Ancho Inferior -->
+            <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 col-span-1 sm:col-span-2 shadow-lg">
+                <h4 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <span>📋</span> Próximos en Fila de Espera
+                </h4>
+                
+                <!-- VISTA RESPONSIVA AUTOMÁTICA -->
+                <div class="overflow-y-auto max-h-[350px] pr-1">
+                    <!-- 🖥️ Vista Desktop (Tabla) -->
+                    <div class="hidden md:block">
+                        <table class="w-full text-left text-sm text-slate-400 border-collapse">
+                            <thead class="bg-slate-950 text-slate-300 uppercase text-xs tracking-wider sticky top-0 z-10 border-b border-slate-800">
+                                <tr>
+                                    <th class="p-3">Turno</th>
+                                    <th class="p-3">Cliente</th>
+                                    <th class="p-3">Tipo Fila</th>
+                                    <th class="p-3">Hora Registro</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaPendientesCaja" class="divide-y divide-slate-800/40">
+                                <!-- Inyección dinámica desde JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 📱 Vista Móvil/Tablet (Tarjetas) -->
+                    <div id="listaPendientesMobile" class="block md:hidden space-y-3">
+                        <!-- Inyección dinámica desde JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Enlace al JS separado -->
+    <script src="/js/cajas.js"></script>
+</body>
+</html>
+
+<!--
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -242,7 +369,11 @@
 </body>
 </html>
 
+  
 
+
+
+-->
 
 <!--
 <!DOCTYPE html>
