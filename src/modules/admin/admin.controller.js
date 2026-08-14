@@ -66,7 +66,10 @@ module.exports = {
 };
 */
 //// archivo nuevo generado para los casos de uso de login
+// src/modules/admin/admin.controller.js
+
 const Usuario = require('../../database/models/Usuario');
+const Turno = require('../../database/models/Turno');
 
 // Listar todos los usuarios (sin mostrar la contraseña)
 const obtenerUsuarios = async (req, res) => {
@@ -110,6 +113,32 @@ const crearUsuario = async (req, res) => {
     res.status(400).json({ error: "Error al crear usuario o el nombre de usuario ya existe" });
   }
 };
+
+// 🔑 NUEVO: Restablecer Contraseña de un Usuario sin eliminarlo
+const resetearPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nuevaPassword } = req.body;
+
+    if (!nuevaPassword || nuevaPassword.trim().length < 4) {
+      return res.status(400).json({ error: "La contraseña debe tener al menos 4 caracteres." });
+    }
+
+    const usuario = await Usuario.findByPk(id);
+    if (!usuario) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    usuario.password = nuevaPassword; // El hook de Sequelize la encriptará
+    await usuario.save();
+
+    res.json({ mensaje: `Contraseña de '${usuario.username}' restablecida correctamente.` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
 
 // Actualizar un usuario existente (cambiar rol, contraseña o ventanilla)
 const actualizarUsuario = async (req, res) => {
