@@ -138,7 +138,21 @@ const resetearPassword = async (req, res) => {
   }
 };
 
+// Eliminar un usuario
+const eliminarUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const filasBorradas = await Usuario.destroy({ where: { id } });
 
+    if (filasBorradas === 0) {
+      return res.status(404).json({ mensaje: "Usuario no encontrado" });
+    }
+
+    res.json({ mensaje: "Usuario eliminado del sistema" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 // Actualizar un usuario existente (cambiar rol, contraseña o ventanilla)
 const actualizarUsuario = async (req, res) => {
@@ -175,17 +189,25 @@ const actualizarUsuario = async (req, res) => {
   }
 };
 
-// Eliminar un usuario
-const eliminarUsuario = async (req, res) => {
+// 📊 NUEVO: Módulo de Reportes y Estadísticas de la Jornada
+const obtenerReportes = async (req, res) => {
   try {
-    const { id } = req.params;
-    const filasBorradas = await Usuario.destroy({ where: { id } });
+    const totalUsuarios = await Usuario.count();
+    const totalTurnos = await Turno.count();
+    const turnosAtendidos = await Turno.count({ where: { estado: 'atendido' } });
+    const turnosEspera = await Turno.count({ where: { estado: 'espera' } });
+    
+    const turnosGeneral = await Turno.count({ where: { tipo: 'general' } });
+    const turnosPrioritario = await Turno.count({ where: { tipo: 'prioritario' } });
 
-    if (filasBorradas === 0) {
-      return res.status(404).json({ mensaje: "Usuario no encontrado" });
-    }
-
-    res.json({ mensaje: "Usuario eliminado del sistema" });
+    res.json({
+      totalUsuarios,
+      totalTurnos,
+      turnosAtendidos,
+      turnosEspera,
+      turnosGeneral,
+      turnosPrioritario
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -194,6 +216,8 @@ const eliminarUsuario = async (req, res) => {
 module.exports = {
   obtenerUsuarios,
   crearUsuario,
+  resetearPassword,
+  eliminarUsuario,
   actualizarUsuario,
-  eliminarUsuario
+  obtenerReportes
 };
