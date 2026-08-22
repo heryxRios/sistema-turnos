@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Administrador - Sistema de Turnos</title>
+    <!-- Guardián de Sesión -->
+    <script src="/js/auth-guard.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js para Gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- CSS Personalizado -->
+    <link rel="stylesheet" href="/css/admin_dashboard.css">
+</head>
+<body class="bg-slate-950 min-h-screen text-slate-100 font-sans antialiased flex flex-col">
+
+    <!-- 🔝 NAVBAR UNIFICADO -->
+    <nav class="bg-slate-900 border-b border-slate-800 p-4 text-white flex justify-between items-center shadow-lg sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">📊</span>
+            <div>
+                <h1 class="text-base md:text-lg font-black tracking-wider uppercase text-slate-200">Panel Ejecutivo de Control</h1>
+                <p class="text-[10px] text-slate-400 font-medium">Sucursal Principal • Monitoreo en Tiempo Real</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="reiniciarSistema()" class="bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white font-bold text-xs px-3 py-2 rounded-lg border border-red-500/20 transition-all">
+                🔄 Reiniciar Jornada
+            </button>
+            <button onclick="logout()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3 py-2 rounded-lg border border-slate-700 transition-all">
+                🚪 Salir
+            </button>
+        </div>
+    </nav>
+
+    <!-- 📦 CONTENIDO PRINCIPAL -->
+    <main class="container mx-auto p-4 md:p-6 max-w-7xl flex-grow flex flex-col gap-6">
+
+        <!-- 📈 SECCIÓN 1: KPIs RESUMEN EN TIEMPO REAL -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Total Emitidos</p>
+                <span id="kpiTotal" class="text-3xl font-black text-blue-400 block mt-1">0</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Atendidos</p>
+                <span id="kpiAtendidos" class="text-3xl font-black text-green-400 block mt-1">0</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">En Espera</p>
+                <span id="kpiEspera" class="text-3xl font-black text-amber-400 block mt-1">0</span>
+            </div>
+            <!-- KPI Prioritario con Acento Fucsia Neón -->
+            <div class="bg-slate-900 border border-fuchsia-500/30 p-4 rounded-2xl shadow-xl bg-gradient-to-b from-fuchsia-950/20 to-transparent">
+                <p class="text-fuchsia-400 text-[10px] font-bold uppercase tracking-wider">Prioritarios (♿)</p>
+                <span id="kpiPrioritarios" class="text-3xl font-black text-fuchsia-400 block mt-1">0</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl col-span-2 md:col-span-1">
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Operadores Activos</p>
+                <span id="kpiOperadores" class="text-3xl font-black text-purple-400 block mt-1">0</span>
+            </div>
+        </div>
+
+        <!-- 🖥️ SECCIÓN 2: MONITOR DE VENTANILLAS Y GRÁFICO -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Monitor de Ventanillas Operativas -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl lg:col-span-2">
+                <h2 class="text-sm font-black text-slate-200 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <span>🏢</span> Estado de Ventanillas en Vivo
+                </h2>
+                <div id="gridVentanillas" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    <!-- Inyección dinámica desde JS -->
+                </div>
+            </div>
+
+            <!-- Gráfico de Proporción de Filas -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center">
+                <h2 class="text-sm font-black text-slate-200 uppercase tracking-wider mb-2 self-start">
+                    📊 Flujo de Demanda
+                </h2>
+                <div class="w-full max-w-[220px] h-[220px] relative">
+                    <canvas id="chartFilas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 👥 SECCIÓN 3: GESTIÓN INTEGRADA DE USUARIOS -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Formulario de Nuevo Usuario -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl h-fit">
+                <h2 class="text-base font-black text-slate-200 mb-6 uppercase tracking-wider flex items-center gap-2">
+                    <span>👤</span> Crear Nuevo Usuario
+                </h2>
+                
+                <form id="userForm" class="space-y-4">
+                    <div>
+                        <label class="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Nombre de Usuario</label>
+                        <input type="text" id="username" placeholder="Ej: cajero3" class="w-full p-3 border border-slate-700 bg-slate-950 text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium text-sm" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Contraseña</label>
+                        <input type="password" id="password" placeholder="••••••••" class="w-full p-3 border border-slate-700 bg-slate-950 text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium text-sm" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Rol del Perfil</label>
+                        <select id="rol" onchange="toggleVentanilla()" class="w-full p-3 border border-slate-700 bg-slate-950 text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium text-sm" required>
+                            <option value="cajero">Cajero / Operador Ventanilla</option>
+                            <option value="atencion">Atención / Tótem Clientes</option>
+                            <option value="seguridad">Seguridad / Monitor Fila</option>
+                            <option value="admin">Administrador del Sistema</option>
+                        </select>
+                    </div>
+
+                    <div id="divVentanilla">
+                        <label class="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Número de Ventanilla Asignada</label>
+                        <input type="number" id="ventanillaDefault" placeholder="Ej: 3" class="w-full p-3 border border-slate-700 bg-slate-950 text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold text-sm">
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-sm">
+                        Guardar Usuario
+                    </button>
+                </form>
+            </div>
+
+            <!-- Tabla de Personal -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl lg:col-span-2 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-base font-black text-slate-200 mb-6 uppercase tracking-wider flex items-center gap-2">
+                        <span>📋</span> Personal Registrado en el Sistema
+                    </h2>
+                    
+                    <div class="overflow-y-auto max-h-[400px] pr-1">
+                        <div class="hidden md:block">
+                            <table class="w-full text-left text-sm text-slate-400 border-collapse">
+                                <thead class="bg-slate-950 text-slate-300 uppercase text-xs tracking-wider sticky top-0 z-10 border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-3">ID</th>
+                                        <th class="p-3">Usuario</th>
+                                        <th class="p-3">Rol</th>
+                                        <th class="p-3">Ventanilla</th>
+                                        <th class="p-3 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaUsuariosDesktop" class="divide-y divide-slate-800/40">
+                                    <!-- Inyección dinámica -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div id="listaUsuariosMobile" class="block md:hidden space-y-3">
+                            <!-- Inyección dinámica -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ✏️ MODAL 1: EDITAR PERFIL -->
+    <div id="modalEditarPerfil" class="fixed inset-0 bg-slate-950/80 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-fade-in">
+            <h3 class="text-lg font-bold text-slate-200 mb-1 text-center">Editar Perfil de Usuario</h3>
+            <p class="text-slate-400 text-xs mb-4 text-center">Modificar rol y ventanilla de <span id="modalEditarUsername" class="font-bold text-blue-400"></span></p>
+            
+            <form id="formEditarPerfil" class="space-y-4">
+                <div>
+                    <label class="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Rol del Perfil</label>
+                    <select id="editRolSelect" onchange="toggleVentanillaEdit()" class="w-full p-3 border border-slate-700 bg-slate-950 text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium text-sm" required>
+                        <option value="cajero">Cajero / Operador Ventanilla</option>
+                        <option value="atencion">Atención / Tótem Clientes</option>
+                        <option value="seguridad">Seguridad / Monitor Fila</option>
+                        <option value="admin">Administrador del Sistema</option>
+                    </select>
+                </div>
+
+                <div id="divEditVentanilla">
+                    <label class="block text-slate-400 text-xs font-bold mb-1 uppercase tracking-wider">Número de Ventanilla</label>
+                    <input type="number" id="editVentanillaInput" placeholder="Ej: 3" class="w-full p-3 border border-slate-700 bg-slate-950 text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold text-sm">
+                </div>
+
+                <div class="flex flex-col gap-2 pt-2">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl transition-all shadow text-sm">
+                        💾 Guardar Cambios
+                    </button>
+                    <button type="button" onclick="cerrarEditarModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2 rounded-xl transition-all border border-slate-700 text-sm">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🔑 MODAL 2: RESTABLECER CONTRASEÑA -->
+    <div id="modalResetPassword" class="fixed inset-0 bg-slate-950/80 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl animate-fade-in">
+            <h3 class="text-lg font-bold text-slate-200 mb-1">Restablecer Contraseña</h3>
+            <p class="text-slate-400 text-xs mb-4">Ingresa la nueva contraseña para el usuario <span id="modalResetUsername" class="font-bold text-amber-400"></span></p>
+            
+            <input type="password" id="nuevaPasswordInput" placeholder="Nueva contraseña" class="w-full p-3 border border-slate-700 bg-slate-950 text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm mb-4">
+            
+            <div class="flex flex-col gap-2">
+                <button onclick="confirmarResetPassword()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-xl transition-all shadow text-sm">
+                    🔑 Guardar Nueva Contraseña
+                </button>
+                <button onclick="cerrarResetModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2 rounded-xl transition-all border border-slate-700 text-sm">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/admin_dashboard.js"></script>
+</body>
+</html>
