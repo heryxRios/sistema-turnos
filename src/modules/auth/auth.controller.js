@@ -1,13 +1,16 @@
 const Usuario = require('../../database/models/Usuario');
 const jwt = require('jsonwebtoken');
-const SECRET = 'MiClaveSecretaSuperSegura2026';
+
+const SECRET = process.env.JWT_SECRET || 'cambiar-este-secreto-en-produccion';
 
 const login = async (req, res) => {
   const { username, password } = req.body;
+
   try {
     const usuario = await Usuario.findOne({ where: { username } });
+
     if (!usuario || !(await usuario.validPassword(password))) {
-      return res.status(401).json({ mensaje: "Usuario o contraseña incorrectos" });
+      return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos' });
     }
 
     const token = jwt.sign(
@@ -16,18 +19,25 @@ const login = async (req, res) => {
       { expiresIn: '8h' }
     );
 
-    res.json({ mensaje: "Bienvenido", token, rol: usuario.rol });
+    return res.json({ mensaje: 'Bienvenido', token, rol: usuario.rol });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
 const registrar = async (req, res) => {
   try {
-    const nuevoUsuario = await Usuario.create(req.body);
-    res.json({ mensaje: "Usuario creado", id: nuevoUsuario.id });
+    const { username, password, rol } = req.body;
+
+    const nuevoUsuario = await Usuario.create({
+      username,
+      password,
+      rol: rol || 'cajero',
+    });
+
+    return res.json({ mensaje: 'Usuario creado', id: nuevoUsuario.id });
   } catch (error) {
-    res.status(400).json({ error: "El usuario ya existe" });
+    return res.status(400).json({ error: 'El usuario ya existe o los datos son inválidos' });
   }
 };
 

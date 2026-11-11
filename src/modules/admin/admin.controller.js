@@ -1,160 +1,82 @@
-/*
-const Usuario = require('../../database/models/Usuario');
-
-// Listar todos los usuarios (sin mostrar la contraseña)
-const obtenerUsuarios = async (req, res) => {
-  try {
-    const usuarios = await Usuario.findAll({
-      attributes: { exclude: ['password'] }
-    });
-    res.json(usuarios);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Crear un nuevo usuario desde el panel de admin
-const crearUsuario = async (req, res) => {
-  try {
-    const { username, password, rol } = req.body;
-    const nuevoUsuario = await Usuario.create({ username, password, rol });
-    res.status(201).json({ mensaje: "Usuario creado exitosamente", id: nuevoUsuario.id });
-  } catch (error) {
-    res.status(400).json({ error: "Error al crear usuario o el nombre ya existe" });
-  }
-};
-
-// Actualizar un usuario existente (cambiar rol o contraseña)
-const actualizarUsuario = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rol, password } = req.body;
-    const usuario = await Usuario.findByPk(id);
-
-    if (!usuario) 
-      return res.status(404).json({ mensaje: "Usuario no encontrado" });
-
-    if (rol) usuario.rol = rol;
-    if (password) usuario.password = password; // El hook en el modelo lo encriptará
-
-    await usuario.save();
-    res.json({ mensaje: "Usuario actualizado correctamente" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Eliminar un usuario
-const eliminarUsuario = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const filasBorradas = await Usuario.destroy({ where: { id } });
-
-    if (filasBorradas === 0) return res.status(404).json({ mensaje: "Usuario no encontrado" });
-
-    res.json({ mensaje: "Usuario eliminado del sistema" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-module.exports = {
-  obtenerUsuarios,
-  crearUsuario,
-  actualizarUsuario,
-  eliminarUsuario
-};
-*/
-//// archivo nuevo generado para los casos de uso de login
-// src/modules/admin/admin.controller.js
-
 const Usuario = require('../../database/models/Usuario');
 const Turno = require('../../database/models/Turno');
 
-// Listar todos los usuarios (sin mostrar la contraseña)
 const obtenerUsuarios = async (req, res) => {
   try {
     const usuarios = await Usuario.findAll({
-      attributes: { exclude: ['password'] }
+      attributes: { exclude: ['password'] },
     });
-    res.json(usuarios);
+    return res.json(usuarios);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
-// Crear un nuevo usuario desde el panel de admin (Soporta: admin, cajero, seguridad, atencion)
 const crearUsuario = async (req, res) => {
   try {
     const { username, password, rol, ventanillaDefault } = req.body;
 
-    // Forzar minúsculas y limpiar espacios en blanco
     const rolFormateado = rol ? rol.toLowerCase().trim() : 'cajero';
-
-    // Validar que el rol sea uno de los permitidos en el sistema
     const rolesPermitidos = ['admin', 'cajero', 'seguridad', 'atencion'];
+
     if (!rolesPermitidos.includes(rolFormateado)) {
       return res.status(400).json({ error: `El rol '${rolFormateado}' no es válido.` });
     }
 
-    const nuevoUsuario = await Usuario.create({ 
-      username, 
-      password, 
+    const nuevoUsuario = await Usuario.create({
+      username,
+      password,
       rol: rolFormateado,
-      // Solo asigna ventanilla si es cajero
-      ventanillaDefault: rolFormateado === 'cajero' && ventanillaDefault ? parseInt(ventanillaDefault) : null
+      ventanillaDefault: rolFormateado === 'cajero' && ventanillaDefault ? parseInt(ventanillaDefault, 10) : null,
     });
 
-    res.status(201).json({ 
-      mensaje: "Usuario creado exitosamente", 
-      usuario: { id: nuevoUsuario.id, username: nuevoUsuario.username, rol: nuevoUsuario.rol } 
+    return res.status(201).json({
+      mensaje: 'Usuario creado exitosamente',
+      usuario: { id: nuevoUsuario.id, username: nuevoUsuario.username, rol: nuevoUsuario.rol },
     });
   } catch (error) {
-    res.status(400).json({ error: "Error al crear usuario o el nombre de usuario ya existe" });
+    return res.status(400).json({ error: 'Error al crear usuario o el nombre de usuario ya existe' });
   }
 };
 
-// 🔑 NUEVO: Restablecer Contraseña de un Usuario sin eliminarlo
 const resetearPassword = async (req, res) => {
   try {
     const { id } = req.params;
     const { nuevaPassword } = req.body;
 
     if (!nuevaPassword || nuevaPassword.trim().length < 4) {
-      return res.status(400).json({ error: "La contraseña debe tener al menos 4 caracteres." });
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres.' });
     }
 
     const usuario = await Usuario.findByPk(id);
     if (!usuario) {
-      return res.status(404).json({ error: "Usuario no encontrado" });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    usuario.password = nuevaPassword; // El hook de Sequelize la encriptará
+    usuario.password = nuevaPassword;
     await usuario.save();
 
-    res.json({ mensaje: `Contraseña de '${usuario.username}' restablecida correctamente.` });
+    return res.json({ mensaje: `Contraseña de '${usuario.username}' restablecida correctamente.` });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
-// Eliminar un usuario
 const eliminarUsuario = async (req, res) => {
   try {
     const { id } = req.params;
     const filasBorradas = await Usuario.destroy({ where: { id } });
 
     if (filasBorradas === 0) {
-      return res.status(404).json({ mensaje: "Usuario no encontrado" });
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
 
-    res.json({ mensaje: "Usuario eliminado del sistema" });
+    return res.json({ mensaje: 'Usuario eliminado del sistema' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
-// Actualizar un usuario existente (cambiar rol, contraseña o ventanilla)
 const actualizarUsuario = async (req, res) => {
   try {
     const { id } = req.params;
@@ -162,7 +84,7 @@ const actualizarUsuario = async (req, res) => {
     const usuario = await Usuario.findByPk(id);
 
     if (!usuario) {
-      return res.status(404).json({ mensaje: "Usuario no encontrado" });
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
 
     if (rol) {
@@ -172,44 +94,45 @@ const actualizarUsuario = async (req, res) => {
         usuario.rol = rolFormateado;
       }
     }
-    
-    if (password) usuario.password = password; // El hook 'beforeUpdate' en el modelo lo encriptará
-    
-    // Ajustar ventanilla según corresponda
+
+    if (password) usuario.password = password;
+
     if (usuario.rol === 'cajero') {
-      if (ventanillaDefault !== undefined) usuario.ventanillaDefault = ventanillaDefault ? parseInt(ventanillaDefault) : null;
+      if (ventanillaDefault !== undefined) {
+        usuario.ventanillaDefault = ventanillaDefault ? parseInt(ventanillaDefault, 10) : null;
+      }
     } else {
       usuario.ventanillaDefault = null;
     }
 
     await usuario.save();
-    res.json({ mensaje: "Usuario actualizado correctamente" });
+    return res.json({ mensaje: 'Usuario actualizado correctamente' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
-// 📊 NUEVO: Módulo de Reportes y Estadísticas de la Jornada
 const obtenerReportes = async (req, res) => {
   try {
     const totalUsuarios = await Usuario.count();
     const totalTurnos = await Turno.count();
-    const turnosAtendidos = await Turno.count({ where: { estado: 'atendido' } });
+    const turnosAtendiendo = await Turno.count({ where: { estado: 'atendiendo' } });
     const turnosEspera = await Turno.count({ where: { estado: 'espera' } });
-    
+    const turnosFinalizados = await Turno.count({ where: { estado: 'finalizado' } });
     const turnosGeneral = await Turno.count({ where: { tipo: 'general' } });
     const turnosPrioritario = await Turno.count({ where: { tipo: 'prioritario' } });
 
-    res.json({
+    return res.json({
       totalUsuarios,
       totalTurnos,
-      turnosAtendidos,
+      turnosAtendiendo,
       turnosEspera,
+      turnosFinalizados,
       turnosGeneral,
-      turnosPrioritario
+      turnosPrioritario,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -219,5 +142,5 @@ module.exports = {
   resetearPassword,
   eliminarUsuario,
   actualizarUsuario,
-  obtenerReportes
+  obtenerReportes,
 };
